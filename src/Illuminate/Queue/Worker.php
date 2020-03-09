@@ -355,6 +355,8 @@ class Worker
             // proper events will be fired to let any listeners know this job has finished.
             $job->fire();
 
+            $this->clearCache($job);
+
             $this->raiseAfterJobEvent($connectionName, $job);
         } catch (Throwable $e) {
             $this->handleJobException($connectionName, $job, $options, $e);
@@ -488,7 +490,22 @@ class Worker
      */
     protected function failJob($job, Throwable $e)
     {
+        $this->clearCache($job);
+
         return $job->fail($e);
+    }
+
+    /**
+     * Clear the cache after the given job.
+     *
+     * @param \Illuminate\Contracts\Queue\Job  $job
+     * @return void
+     */
+    protected function clearCache($job): void
+    {
+        if ($this->cache && ! is_null($uuid = $job->uuid())) {
+            $this->cache->forget('job-exceptions:'.$uuid);
+        }
     }
 
     /**
