@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\QueueableEntity;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\Concerns\AsPivot;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\UncommittedTransactionException;
 
 trait SerializesAndRestoresModelIdentifiers
 {
@@ -20,6 +21,8 @@ trait SerializesAndRestoresModelIdentifiers
     protected function getSerializedPropertyValue($value)
     {
         if ($value instanceof QueueableCollection) {
+            $this->checkTransactions($value);
+
             return new ModelIdentifier(
                 $value->getQueueableClass(),
                 $value->getQueueableIds(),
@@ -29,6 +32,8 @@ trait SerializesAndRestoresModelIdentifiers
         }
 
         if ($value instanceof QueueableEntity) {
+            $this->checkTransactions($value);
+
             return new ModelIdentifier(
                 get_class($value),
                 $value->getQueueableId(),
@@ -100,6 +105,31 @@ trait SerializesAndRestoresModelIdentifiers
         return $this->getQueryForModelRestoration(
             (new $value->class)->setConnection($value->connection), $value->id
         )->useWritePdo()->firstOrFail()->load($value->relations ?? []);
+    }
+
+    /**
+     * Get the connection used by the model.
+     *
+     * @param  string  $class
+     * @param  string  $connection
+     * @return \Illuminate\Database\Connection
+     */
+    protected function checkTransactions($value)
+    {
+        $class = $value instanceof QueueableCollection
+                    ? $value->getQueueableClass()
+                    : get_class($value);
+
+        $transactionLevel = (new $class)
+            ->setConnection($value->getQueueableConnection())
+            ->getConnection()
+            ->transactionLevel();
+
+        if ($transactionLevel > 0) {
+            throw new UncommittedTransactionException(
+                'Dispatching ['.get_class($this).'] inside an uncommitted transaction is not allowed.'
+            );
+        }
     }
 
     /**
