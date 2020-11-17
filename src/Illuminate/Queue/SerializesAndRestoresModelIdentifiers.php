@@ -120,6 +120,10 @@ trait SerializesAndRestoresModelIdentifiers
                     ? $value->getQueueableClass()
                     : get_class($value);
 
+        if (! $class) {
+            return;
+        }
+
         $transactionLevel = (new $class)
             ->setConnection($value->getQueueableConnection())
             ->getConnection()
