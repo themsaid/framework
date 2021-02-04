@@ -546,6 +546,11 @@ class SupportStringableTest extends TestCase
         $this->assertSame(['foo', 'bar', 'baz'], $chunks->all());
     }
 
+    public function testJsonSerialize()
+    {
+        $this->assertSame('"foo"', json_encode($this->stringable('foo')));
+    }
+
     public function testTap()
     {
         $stringable = $this->stringable('foobarbaz');
@@ -568,5 +573,11 @@ class SupportStringableTest extends TestCase
 
         $this->assertInstanceOf(Stringable::class, $this->stringable('foo')->pipe($callback));
         $this->assertSame('bar', (string) $this->stringable('foo')->pipe($callback));
+    }
+
+    public function testMarkdown()
+    {
+        $this->assertEquals("<p><em>hello world</em></p>\n", $this->stringable('*hello world*')->markdown());
+        $this->assertEquals("<h1>hello world</h1>\n", $this->stringable('# hello world')->markdown());
     }
 }
